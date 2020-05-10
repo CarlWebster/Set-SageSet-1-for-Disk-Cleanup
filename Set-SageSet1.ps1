@@ -7,24 +7,65 @@
 	Running cleanmgr.exe /SageSet:1 presents more options than running the
 	Disk Cleanup Windows app. This script retrieves all registry keys in 
 	HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches 
-	and sets the property named StateFlags0001 to a value of 2.
+	and sets the property named StateFlags0001 to a value of 2 or 0 if the
+	Clean parameter is used.
 	
-	Using ideas from https://msdn.microsoft.com/en-us/library/windows/desktop/bb776782(v=vs.85).aspx
+	Using ideas from 
+	https://msdn.microsoft.com/en-us/library/windows/desktop/bb776782(v=vs.85).aspx
 	
 	This Script runs best in version 5.
 
 	This script requires an elevated PowerShell session.
 
+.PARAMETER Downloads
+	Defaults to $False
+	
+	Windows 10 1809 added the Downloads folder to the list of folders that can be cleaned.
+	By default, the script will exclude the Downloads folder.
+	If you want the Downloads folder cleaned, use -Downloads $True
+.PARAMETER Reset
+	Defaults to $False
+	
+	Sets or resets all values to 0 in 
+	HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches
+.EXAMPLE
+	PS C:\PSScript > .\Set-SageSet1.ps1
+
+	Except for DownloadsFolder, sets all StateFlags0001 value to 2 in 
+	HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches
+.EXAMPLE
+	PS C:\PSScript > .\Set-SageSet1.ps1 -Downloads
+
+	Sets all StateFlags0001 value to 2, including DownloadsFolder, in 
+	HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches
+.EXAMPLE
+	PS C:\PSScript > .\Set-SageSet1.ps1 -Reset
+
+	Sets all StateFlags0001 value to 0 in 
+	HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches
 .INPUTS
 	None.  You cannot pipe objects to this script.
 .OUTPUTS
 	No objects are output from this script.
 .NOTES
 	NAME: Set-SageSet1.ps1
-	VERSION: 1.00
+	VERSION: 1.10
 	AUTHOR: Carl Webster, Sr. Solutions Architect, Choice Solutions, LLC
-	LASTEDIT: May 17, 2018
+	LASTEDIT: December 14, 2018
 #>
+
+#region script parameters
+[CmdletBinding(SupportsShouldProcess = $False, ConfirmImpact = "None") ]
+
+Param(
+	[parameter(Mandatory=$False)] 
+	[Switch]$Downloads=$False,
+
+	[parameter(Mandatory=$False)] 
+	[Switch]$Reset=$False
+
+	)
+#endregion
 
 #webster@carlwebster.com
 #Sr. Solutions Architect at Choice Solutions, LLC
@@ -34,6 +75,11 @@
 
 #Version 1.0 released to the community on May 17, 2018
 #Thanks to Michael B. Smith for the code review and suggestions
+#
+#V1.10
+#	Add -Downloads switch parameter.
+#		Win10 1809 added the DOwnloads folder to the list of folders that can be cleaned.
+#		-Downloads is $False by default to exlude cleaning out the Downloads folder
 
 Set-StrictMode -Version 2
 
@@ -66,17 +112,40 @@ Else
 {
 	ForEach($result in $results)
 	{
-		#this is what is returned in $result.name:
-		#HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\<some name>
-		#change HKEY_LOCAL_MACHINE to HKLM:
-		$tmp = 'HKLM:' + $result.Name.Substring( 18 )
-		$tmp2 = $result.Name.SubString( $result.Name.LastIndexOf( '\' ) + 1 )
-		Write-Host "Setting $tmp2"
-		$null = New-ItemProperty -Path $tmp -Name 'StateFlags0001' -Value 2 -PropertyType DWORD -Force -EA 0
-		
-		If(!$?)
+		If($Reset -eq $False)
 		{
-			Write-Warning "`tUnable to set $tmp2"
+			#this is what is returned in $result.name:
+			#HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\<some name>
+			#change HKEY_LOCAL_MACHINE to HKLM:
+			
+			If($Downloads -eq $False -and $result.name -eq "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches\DownloadsFolder")
+			{
+				#do nothing
+			}
+			Else
+			{
+				$tmp = 'HKLM:' + $result.Name.Substring( 18 )
+				$tmp2 = $result.Name.SubString( $result.Name.LastIndexOf( '\' ) + 1 )
+				Write-Host "Setting $tmp2 to 2"
+				$null = New-ItemProperty -Path $tmp -Name 'StateFlags0001' -Value 2 -PropertyType DWORD -Force -EA 0
+				
+				If(!$?)
+				{
+					Write-Warning "`tUnable to set $tmp2"
+				}
+			}
+		}
+		ElseIf($Reset -eq $True)
+		{
+			$tmp = 'HKLM:' + $result.Name.Substring( 18 )
+			$tmp2 = $result.Name.SubString( $result.Name.LastIndexOf( '\' ) + 1 )
+			Write-Host "Resetting $tmp2 to 0"
+			$null = New-ItemProperty -Path $tmp -Name 'StateFlags0001' -Value 0 -PropertyType DWORD -Force -EA 0
+			
+			If(!$?)
+			{
+				Write-Warning "`tUnable to set $tmp2"
+			}
 		}
 	}
 	Write-Host "Script ended Successfully"
