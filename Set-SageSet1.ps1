@@ -50,7 +50,7 @@
 .NOTES
 	NAME: Set-SageSet1.ps1
 	VERSION: 1.10
-	AUTHOR: Carl Webster, Sr. Solutions Architect, Choice Solutions, LLC
+	AUTHOR: Carl Webster
 	LASTEDIT: December 14, 2018
 #>
 
@@ -68,7 +68,6 @@ Param(
 #endregion
 
 #webster@carlwebster.com
-#Sr. Solutions Architect at Choice Solutions, LLC
 #@carlwebster on Twitter
 #http://www.CarlWebster.com
 #Created on September 4, 2017
